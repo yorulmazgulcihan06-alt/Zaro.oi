@@ -3,179 +3,188 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZARO.IO | 3D Voxel War</title>
+    <title>ZARO.IO | Online Savaş</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; }
-        canvas { display: block; }
+        :root { --gold: #ffd700; --red: #ff4757; --blue: #2e86de; }
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; background: #000; color: white; }
+        
+        /* GİRİŞ EKRANI - CİHAZ SEÇİMİ */
+        #setup-screen {
+            position: absolute; width: 100%; height: 100%; z-index: 100;
+            background: #121212; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
 
-        /* LOBİ TASARIMI */
+        /* LOBİ VE MARKET */
         #lobby {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8) url('https://wallpaperaccess.com/full/1510565.jpg') no-repeat center center;
-            background-size: cover; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;
+            position: absolute; width: 100%; height: 100%; z-index: 50;
+            background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center;
         }
-        .ui-box {
-            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
-            padding: 40px; border-radius: 20px; border: 2px solid #fff; text-align: center; color: white;
-        }
-        input { padding: 15px; width: 250px; border-radius: 10px; border: none; margin-bottom: 20px; font-size: 18px; }
-        button { 
-            padding: 15px 40px; font-size: 20px; cursor: pointer; border-radius: 10px; border: none;
-            background: #ff4757; color: white; font-weight: bold; transition: 0.3s;
-        }
-        button:hover { background: #ff6b81; transform: scale(1.1); }
 
-        /* OYUN İÇİ ARAYÜZ */
-        #hud { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        #crosshair { 
-            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
-            border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%);
+        .window {
+            background: #222; border: 2px solid var(--gold); padding: 30px; border-radius: 15px;
+            text-align: center; width: 320px; margin: 10px;
         }
-        #fullscreen-btn {
-            position: absolute; top: 20px; right: 20px; pointer-events: auto;
-            background: rgba(0,0,0,0.5); color: white; border: 1px solid white; padding: 10px; cursor: pointer;
+
+        .btn {
+            padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer;
+            font-weight: bold; margin: 10px; transition: 0.3s;
         }
+        .btn-pc { background: var(--blue); color: white; }
+        .btn-mobile { background: var(--red); color: white; }
+        .btn-play { background: #2ecc71; color: white; width: 100%; font-size: 20px; }
+
+        /* MARKET VE ENVANTER */
+        .item-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 15px 0; }
+        .slot { width: 100%; aspect-ratio: 1; background: #333; border: 2px solid transparent; display: flex; align-items: center; justify-content: center; font-size: 30px; }
+        .unlocked { border-color: var(--gold); background: #444; }
+
+        /* HUD */
+        #hud { display: none; position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 15px; height: 15px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
+
+        /* ADMİN GİRİŞİ */
+        #admin-input { position: absolute; bottom: 10px; right: 10px; opacity: 0.5; background: none; border: 1px solid #444; color: #444; padding: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="lobby">
-        <div class="ui-box">
-            <h1>ZARO.IO</h1>
-            <input type="text" id="username" placeholder="Oyuncu Adı...">
-            <br>
-            <button onclick="startGame()">SAVAŞA BAŞLA</button>
-            <p id="device-info" style="font-size: 12px; margin-top: 15px;"></p>
+    <div id="setup-screen">
+        <h1>ZARO.IO</h1>
+        <h3>Oynadığın Cihazı Seç:</h3>
+        <div>
+            <button class="btn btn-pc" onclick="selectDevice('pc')">💻 BİLGİSAYAR (Online)</button>
+            <button class="btn btn-mobile" onclick="selectDevice('mobile')">📱 TELEFON (Online)</button>
         </div>
+        <button class="btn" style="background:#555" onclick="selectDevice('offline')">🌐 ÇEVRİMDIŞI OYNA</button>
+    </div>
+
+    <div id="lobby">
+        <div class="window">
+            <h2 id="lobby-title">LOBİ</h2>
+            <input type="text" id="username" placeholder="Nick Yaz..." style="padding:10px; width:80%; margin-bottom:10px;">
+            
+            <div class="item-grid">
+                <div class="slot" id="s1">🔫</div>
+                <div class="slot" id="s2">💣</div>
+                <div class="slot" id="s3">🗡️</div>
+                <div class="slot" id="s4">🛡️</div>
+                <div class="slot" id="s5">✨</div>
+                <div class="slot" id="s6">💎</div>
+            </div>
+
+            <button class="btn btn-play" onclick="startBattle()">SAVAŞA BAŞLA</button>
+            <div style="display:flex; justify-content: space-between;">
+                <button onclick="alert('Arkadaşlık İsteği Gönderildi')" style="background:none; color:var(--blue); border:none; cursor:pointer;">+ Arkadaş Ekle</button>
+                <button onclick="alert('Sandık Açılıyor...')" style="background:none; color:var(--gold); border:none; cursor:pointer;">🎁 Sandık Aç</button>
+            </div>
+        </div>
+        <input type="password" id="admin-input" placeholder="Kod..." oninput="checkAdmin(this.value)">
     </div>
 
     <div id="hud">
-        <div id="crosshair"></div>
-        <button id="fullscreen-btn" onclick="toggleFullScreen()">TAM EKRAN</button>
+        <div style="font-size: 24px;">❤️ 100 | ⚡ 2-6 OYUNCU</div>
     </div>
+    <div id="crosshair" style="display:none"></div>
 
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
     </script>
 
     <script type="module">
         import * as THREE from 'three';
-        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        let scene, camera, renderer, controls, weapon;
-        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        document.getElementById('device-info').innerText = isMobile ? "Mobil Cihaz Tespit Edildi (Dokunmatik Aktif)" : "PC Tespit Edildi (WASD + Mouse)";
+        let scene, camera, renderer, deviceType, weapon;
+        let isGameRunning = false;
 
-        function init() {
-            // 1. SAHNE VE KAMERA
+        // Cihaz Seçimi
+        window.selectDevice = (type) => {
+            deviceType = type;
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('lobby').style.display = 'flex';
+            document.getElementById('lobby-title').innerText = type.toUpperCase() + " LOBİSİ";
+        };
+
+        // Admin Kodu Kontrolü
+        window.checkAdmin = (val) => {
+            if(val === 'admin5656') {
+                alert("ADMIN YETKİSİ ALINDI! Her şey bedava.");
+                document.querySelectorAll('.slot').forEach(s => {
+                    s.classList.add('unlocked');
+                    s.style.backgroundColor = "#1e3799";
+                });
+            }
+        };
+
+        // Savaşı Başlat
+        window.startBattle = () => {
+            const nick = document.getElementById('username').value;
+            if(!nick) return alert("Nick girmelisin!");
+            
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('crosshair').style.display = 'block';
+            
+            initGame();
+        };
+
+        function initGame() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb); // Gelişmiş Gökyüzü Rengi
-            scene.fog = new THREE.Fog(0x87ceeb, 0, 100); // Sis efekti
+            scene.background = new THREE.Color(0x87ceeb); // Gök mavisi
+            scene.fog = new THREE.Fog(0x87ceeb, 20, 100);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.body.appendChild(renderer.domElement);
 
-            // 2. IŞIKLANDIRMA (DETAYLI)
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); 
-            scene.add(ambientLight);
+            // IŞIKLAR
+            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+            sun.position.set(10, 50, 20);
+            sun.castShadow = true;
+            scene.add(sun);
+            scene.add(new THREE.AmbientLight(0x404040, 0.6));
 
-            const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
-            sunLight.position.set(10, 50, 10);
-            sunLight.castShadow = true;
-            sunLight.shadow.mapSize.width = 2048;
-            sunLight.shadow.mapSize.height = 2048;
-            scene.add(sunLight);
-
-            // 3. DÜNYA (EV VE ZEMİN)
-            // Zemin
-            const floor = new THREE.Mesh(
-                new THREE.PlaneGeometry(100, 100),
-                new THREE.MeshStandardMaterial({ color: 0x44aa44 })
-            );
+            // ZEMİN (İstediğin yer zemini)
+            const floorGeo = new THREE.PlaneGeometry(200, 200);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            // Örnek Bir Ev (Voxel Tarzı)
-            const house = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), new THREE.MeshStandardMaterial({color: 0x8b4513}));
-            body.position.y = 2;
-            body.castShadow = true;
-            const roof = new THREE.Mesh(new THREE.ConeGeometry(4, 3, 4), new THREE.MeshStandardMaterial({color: 0xff0000}));
-            roof.position.y = 5.5;
-            roof.rotation.y = Math.PI / 4;
-            house.add(body, roof);
-            house.position.set(0, 0, -10);
-            scene.add(house);
-
-            // 4. SİLAH (DETAYLI)
+            // DETAYLI SİLAH
             weapon = new THREE.Group();
-            const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.5), new THREE.MeshStandardMaterial({color: 0x222222}));
-            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), new THREE.MeshStandardMaterial({color: 0x111111}));
-            barrel.rotation.x = Math.PI / 2;
-            barrel.position.z = -0.3;
-            weapon.add(gunBody, barrel);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.6), new THREE.MeshStandardMaterial({color: 0x222222}));
+            const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5), new THREE.MeshStandardMaterial({color: 0x000}));
+            pipe.rotation.x = Math.PI / 2; pipe.position.z = -0.3;
+            weapon.add(body, pipe);
             camera.add(weapon);
-            weapon.position.set(0.3, -0.25, -0.5);
+            weapon.position.set(0.3, -0.2, -0.5);
             scene.add(camera);
 
-            // 5. KONTROLLER
-            controls = new PointerLockControls(camera, document.body);
-            
-            window.addEventListener('resize', onWindowResize);
+            isGameRunning = true;
             animate();
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
         function animate() {
+            if(!isGameRunning) return;
             requestAnimationFrame(animate);
             
-            // Silahın nefes alma efekti (Yumuşak hareket)
-            if(controls.isLocked) {
-                weapon.position.y = -0.25 + Math.sin(Date.now() * 0.005) * 0.005;
-            }
-            
+            // Silah sallanma efekti
+            weapon.position.y = -0.2 + Math.sin(Date.now() * 0.003) * 0.005;
+            weapon.position.x = 0.3 + Math.cos(Date.now() * 0.002) * 0.003;
+
             renderer.render(scene, camera);
         }
 
-        // Buton Fonksiyonları
-        window.startGame = function() {
-            const name = document.getElementById('username').value;
-            if(name.length < 2) { alert("Lütfen bir isim gir!"); return; }
-            
-            document.getElementById('lobby').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-            
-            if(!isMobile) {
-                controls.lock();
-            }
-        }
-
-        window.toggleFullScreen = function() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                document.exitFullscreen();
-            }
-        }
-
-        init();
+        window.addEventListener('resize', () => {
+            if(!renderer) return;
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
