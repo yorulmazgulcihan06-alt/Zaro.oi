@@ -4,416 +4,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ZARO.IO - Cyber Arena</title>
+    <title>ZARO.IO | Multi-Player Arena</title>
+    <!-- Tailwind CSS for UI structure -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
             --zaro-neon: #00ff88;
             --zaro-purple: #7000ff;
-            --zaro-danger: #ff3e3e;
-            --dark-bg: #020205;
         }
-
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            overflow: hidden; background: var(--dark-bg); 
-            font-family: 'Orbitron', 'Segoe UI', sans-serif;
-            color: white; user-select: none; touch-action: none;
-        }
-
-        #game-canvas { display: block; width: 100%; height: 100%; }
-
-        /* Lobi */
-        #ui-overlay { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
-        #lobby { 
-            position: absolute; inset: 0; background: radial-gradient(circle at center, #0a0a1a 0%, #020205 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            pointer-events: all; transition: opacity 0.5s;
-        }
-
-        .zaro-card {
-            background: rgba(10, 10, 20, 0.85);
-            backdrop-filter: blur(20px);
-            border: 2px solid var(--zaro-neon);
-            border-radius: 30px;
-            padding: 50px 40px;
-            text-align: center;
-            width: 340px;
-            box-shadow: 0 0 50px rgba(0, 255, 136, 0.15);
-        }
-
-        h1 { 
-            font-size: 3rem; margin: 0 0 10px; letter-spacing: 8px; 
-            background: linear-gradient(to bottom, #fff, var(--zaro-neon));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .tagline { color: #666; font-size: 0.8rem; letter-spacing: 3px; margin-bottom: 30px; text-transform: uppercase; }
-
-        input { 
-            width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #333;
-            background: rgba(255,255,255,0.05); color: white; text-align: center; outline: none; 
-            box-sizing: border-box; font-size: 1rem; margin-bottom: 20px;
-        }
-
-        .device-toggle { display: flex; gap: 10px; margin-bottom: 25px; }
-        .dev-btn {
-            flex: 1; padding: 12px; border-radius: 10px; border: 1px solid #222;
-            background: #111; color: #555; cursor: pointer; transition: 0.3s; font-weight: bold;
-        }
-        .dev-btn.selected { border-color: var(--zaro-purple); color: white; background: rgba(112, 0, 255, 0.2); }
-
-        #play-now {
-            width: 100%; padding: 18px; border-radius: 12px; border: none;
-            background: linear-gradient(90deg, var(--zaro-neon), var(--zaro-purple));
-            color: white; font-weight: 900; font-size: 1.2rem; cursor: pointer;
-            transition: 0.3s; text-transform: uppercase; letter-spacing: 2px;
-        }
-
-        /* HUD */
-        #hud { display: none; position: absolute; inset: 0; pointer-events: none; }
+        body { margin: 0; background: #020205; overflow: hidden; font-family: sans-serif; user-select: none; touch-action: none; }
+        canvas { display: block; }
         
-        #radar {
-            position: absolute; top: 25px; right: 25px; width: 160px; height: 160px;
-            background: rgba(0,0,0,0.8); border: 2px solid var(--zaro-neon); border-radius: 15px;
-            overflow: hidden;
+        .neon-border { border: 2px solid var(--zaro-neon); box-shadow: 0 0 15px rgba(0, 255, 136, 0.3); }
+        .skill-cooldown { transition: height 0.1s linear; }
+        
+        /* Mobil Joystick Alanı */
+        #joy-container {
+            position: absolute; bottom: 40px; left: 40px;
+            width: 140px; height: 140px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%; border: 1px solid rgba(255,255,255,0.1);
+            display: none; pointer-events: all; z-index: 100;
         }
-        #radar-canvas { width: 100%; height: 100%; }
-
-        .player-info { position: absolute; top: 25px; left: 25px; }
-        .zaro-hp-box { width: 220px; height: 12px; background: #111; border-radius: 6px; border: 1px solid #333; overflow: hidden; margin-top: 5px; }
-        .zaro-hp-fill { height: 100%; width: 100%; background: var(--zaro-neon); box-shadow: 0 0 10px var(--zaro-neon); transition: 0.3s; }
-
-        .skill-bar { position: absolute; bottom: 40px; right: 40px; display: flex; gap: 20px; pointer-events: all; }
-        .skill-btn {
-            width: 70px; height: 70px; border-radius: 18px; background: rgba(0,0,0,0.85);
-            border: 2px solid var(--zaro-purple); color: white; display: flex; align-items: center;
-            justify-content: center; font-size: 10px; flex-direction: column; position: relative;
+        #joy-stick {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px; background: var(--zaro-neon);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px var(--zaro-neon); opacity: 0.8;
         }
-        .skill-cooldown { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); height: 0%; transition: height 0.1s; border-radius: 16px; }
-
-        #joystick-zone {
-            position: absolute; bottom: 60px; left: 60px; width: 140px; height: 140px;
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; 
-            display: none; pointer-events: all;
-        }
-        #joystick-head {
-            position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
-            background: var(--zaro-neon); border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.5;
-        }
-
-        #fs-trigger { position: absolute; top: 15px; right: 200px; background: none; border: none; color: #444; cursor: pointer; pointer-events: all; font-size: 20px; }
     </style>
 </head>
 <body>
 
-    <button id="fs-trigger" onclick="toggleFull()">⛶</button>
-
-    <div id="ui-overlay">
-        <div id="lobby">
-            <div class="zaro-card">
-                <h1>ZARO.IO</h1>
-                <p class="tagline">World Update</p>
-                <input type="text" id="zaro-name" placeholder="PİLOT İSMİ..." maxlength="12">
-                <div class="device-toggle">
-                    <button class="dev-btn selected" id="set-pc">DESKTOP</button>
-                    <button class="dev-btn" id="set-mob">MOBILE</button>
-                </div>
-                <button id="play-now" disabled>YÜKLENİYOR...</button>
-            </div>
-        </div>
-
-        <div id="hud">
-            <div class="player-info">
-                <div id="display-name" style="font-weight: 900; letter-spacing: 2px; color: #fff;">PİLOT</div>
-                <div class="zaro-hp-box"><div class="zaro-hp-fill" id="hp-bar"></div></div>
-                <div id="display-score" style="margin-top: 8px; font-size: 12px; color: var(--zaro-neon);">PUAN: 0</div>
+    <!-- Lobi Ekranı -->
+    <div id="lobby" class="fixed inset-0 z-[200] flex items-center justify-center bg-[#020205]">
+        <div class="bg-[#0a0a1a] p-8 rounded-3xl neon-border w-80 text-center">
+            <h1 class="text-4xl font-black italic tracking-tighter text-[#00ff88] mb-2">ZARO.IO</h1>
+            <p class="text-[10px] text-gray-500 mb-6 tracking-[0.3em]">BATTLE PROTOCOL v1.0</p>
+            
+            <input type="text" id="p-name" placeholder="PİLOT ADI" maxlength="12" 
+                class="w-full bg-black border border-gray-800 p-3 rounded-lg text-white text-center mb-4 focus:outline-none focus:border-[#00ff88]">
+            
+            <div class="flex gap-2 mb-6">
+                <button id="mode-pc" class="flex-1 p-2 bg-[#7000ff]/20 text-white rounded-lg border border-[#7000ff] text-xs font-bold">PC</button>
+                <button id="mode-mobile" class="flex-1 p-2 bg-black text-gray-500 rounded-lg border border-gray-800 text-xs font-bold">MOBİL</button>
             </div>
 
-            <div id="radar">
-                <canvas id="radar-canvas"></canvas>
-            </div>
-
-            <div class="skill-bar">
-                <div class="skill-btn" id="btn-dash">
-                    <span style="font-weight: bold;">DASH</span>
-                    <span class="key-hint" style="font-size: 8px; opacity: 0.5;">(L-SHIFT)</span>
-                    <div class="skill-cooldown" id="cd-dash"></div>
-                </div>
-                <div class="skill-btn" id="btn-bomb">
-                    <span style="font-weight: bold;">BOMBA</span>
-                    <span class="key-hint" style="font-size: 8px; opacity: 0.5;">(E / Q)</span>
-                    <div class="skill-cooldown" id="cd-bomb"></div>
-                </div>
-            </div>
-
-            <div id="joystick-zone">
-                <div id="joystick-head"></div>
-            </div>
+            <button id="btn-start" disabled class="w-full py-4 bg-[#00ff88] text-black font-black rounded-xl hover:scale-105 transition-transform disabled:opacity-50">
+                BAĞLANILIYOR...
+            </button>
         </div>
     </div>
 
-    <canvas id="game-canvas"></canvas>
+    <!-- HUD -->
+    <div id="hud" class="fixed inset-0 pointer-events-none z-50 hidden">
+        <!-- Oyuncu Bilgisi -->
+        <div class="absolute top-6 left-6">
+            <div id="hud-name" class="text-white font-bold text-lg italic">PILOT</div>
+            <div class="w-48 h-2 bg-black border border-gray-800 mt-1 overflow-hidden">
+                <div id="hud-hp" class="h-full bg-[#00ff88] w-full transition-all"></div>
+            </div>
+        </div>
+
+        <!-- Yetenekler -->
+        <div class="absolute bottom-10 right-10 flex gap-4">
+            <button id="btn-dash" class="pointer-events-auto w-20 h-20 rounded-full bg-black/60 border-4 border-[#7000ff] text-white font-bold text-[10px] relative overflow-hidden active:scale-90 transition-transform">
+                DASH
+                <div id="cd-dash" class="absolute bottom-0 left-0 w-full bg-black/80 h-0 skill-cooldown"></div>
+            </button>
+            <button id="btn-bomb" class="pointer-events-auto w-20 h-20 rounded-full bg-black/60 border-4 border-[#00ff88] text-white font-bold text-[10px] relative overflow-hidden active:scale-90 transition-transform">
+                BOMBA
+                <div id="cd-bomb" class="absolute bottom-0 left-0 w-full bg-black/80 h-0 skill-cooldown"></div>
+            </button>
+        </div>
+
+        <!-- Joystick -->
+        <div id="joy-container"><div id="joy-stick"></div></div>
+    </div>
+
+    <canvas id="game"></canvas>
 
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'zaro-io-v2';
+        // Firebase Setup
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'zaro-io-prod';
         const firebaseConfig = JSON.parse(__firebase_config);
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        let scene, camera, renderer, me, myId;
+        let scene, camera, renderer, myId, me;
         let isMobile = false;
-        let activeState = 'LOBBY';
-        const others = {};
-        const shots = [];
-        const press = {};
-        
-        const radCanvas = document.getElementById('radar-canvas');
-        const radCtx = radCanvas.getContext('2d');
+        let others = {};
+        const keys = {};
 
-        function startEngine() {
+        // Three.js Init
+        function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020205);
-            scene.fog = new THREE.FogExp2(0x020205, 0.04);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
+            renderer.setPixelRatio(window.devicePixelRatio);
 
-            // --- GÖKYÜZÜ (YILDIZLAR) ---
-            const starGeo = new THREE.BufferGeometry();
-            const starPos = [];
-            for(let i=0; i<3000; i++) {
-                starPos.push((Math.random()-0.5)*1000, (Math.random()*500), (Math.random()-0.5)*1000);
-            }
-            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-            const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
-            const stars = new THREE.Points(starGeo, starMat);
-            scene.add(stars);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const light = new THREE.PointLight(0x7000ff, 1, 100);
+            light.position.set(10, 20, 10);
+            scene.add(light);
 
-            // --- IŞIKLANDIRMA ---
-            scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-            const mainLight = new THREE.DirectionalLight(0x7000ff, 0.8);
-            mainLight.position.set(50, 100, 50);
-            mainLight.castShadow = true;
-            scene.add(mainLight);
-
-            const neonLight = new THREE.PointLight(0x00ff88, 1, 100);
-            neonLight.position.set(0, 10, 0);
-            scene.add(neonLight);
-
-            // Zemin
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0x050505 }));
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
-
-            const grid = new THREE.GridHelper(500, 100, 0x00ff88, 0x111111);
-            grid.position.y = 0.01;
+            const grid = new THREE.GridHelper(400, 40, 0x00ff88, 0x111111);
             scene.add(grid);
 
-            // --- EVLER VE KULELER ---
-            const createStructure = (x, z, type) => {
-                const group = new THREE.Group();
-                if(type === 'house') {
-                    const base = new THREE.Mesh(new THREE.BoxGeometry(10, 15, 10), new THREE.MeshStandardMaterial({ color: 0x0a0a0a }));
-                    base.position.y = 7.5;
-                    const neonWindow = new THREE.Mesh(new THREE.BoxGeometry(10.2, 2, 2), new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88 }));
-                    neonWindow.position.y = 10;
-                    group.add(base, neonWindow);
-                } else {
-                    // KULE
-                    const tower = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 20, 8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-                    tower.position.y = 10;
-                    const top = new THREE.Mesh(new THREE.SphereGeometry(2.5), new THREE.MeshStandardMaterial({ color: 0x7000ff, emissive: 0x7000ff }));
-                    top.position.y = 20;
-                    group.add(tower, top);
-                }
-                group.position.set(x, 0, z);
-                scene.add(group);
-            };
-
-            for(let i=0; i<15; i++) createStructure(Math.random()*300-150, Math.random()*300-150, 'house');
-            for(let i=0; i<10; i++) createStructure(Math.random()*300-150, Math.random()*300-150, 'tower');
-
-            // --- YERDEKİ EŞYALAR (SİLAH VE SARGI BEZİ) ---
-            const createLoot = (x, z, isMed) => {
-                const group = new THREE.Group();
-                if(isMed) {
-                    // SARGI BEZİ (İlk Yardım Çantası gibi)
-                    const box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-                    const cross = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.3), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
-                    const cross2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.1, 0.3), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
-                    group.add(box, cross, cross2);
-                } else {
-                    // SİLAH (Basit bir lazer tüfeği gibi)
-                    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 2), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-                    const glow = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 1.5), new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88 }));
-                    group.add(gun, glow);
-                }
-                group.position.set(x, 0.5, z);
-                scene.add(group);
-                // Döndürme efekti için referans
-                group.userData.isLoot = true;
-            };
-
-            for(let i=0; i<20; i++) createLoot(Math.random()*300-150, Math.random()*300-150, i%2===0);
-
-            loop();
+            animate();
         }
 
-        function createZaroModel(isEnemy = false) {
+        function animate() {
+            requestAnimationFrame(animate);
+            if(me) {
+                updateMovement();
+                camera.position.lerp(new THREE.Vector3(me.position.x, 25, me.position.z + 20), 0.1);
+                camera.lookAt(me.position);
+            }
+            renderer.render(scene, camera);
+        }
+
+        // Karakter Oluşturma
+        function createPlayer(color) {
             const group = new THREE.Group();
-            const mainColor = isEnemy ? 0x7000ff : 0x00ff88;
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 1), new THREE.MeshStandardMaterial({ color: mainColor }));
-            body.position.y = 1.2;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), new THREE.MeshStandardMaterial({ color }));
+            body.position.y = 0.8;
             group.add(body);
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: mainColor }));
-            head.position.y = 2.4;
-            group.add(head);
-            const cannon = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 1.8), new THREE.MeshStandardMaterial({ color: 0x000000 }));
-            cannon.position.set(0.7, 1.3, 0.8);
-            group.add(cannon);
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.4, 0.4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+            visor.position.set(0, 1.1, 0.7);
+            group.add(visor);
             return group;
         }
 
-        const joyState = { active: false, x: 0, y: 0 };
-        function bindInputs() {
-            window.addEventListener('keydown', e => press[e.code] = true);
-            window.addEventListener('keyup', e => press[e.code] = false);
-            window.addEventListener('mousedown', () => { if(activeState === 'PLAY' && !isMobile) shoot(); });
-            const jZone = document.getElementById('joystick-zone');
-            const jHead = document.getElementById('joystick-head');
-            jZone.addEventListener('touchstart', (e) => { e.preventDefault(); joyState.active = true; });
-            jZone.addEventListener('touchmove', e => {
-                e.preventDefault(); if(!joyState.active) return;
-                const t = e.touches[0]; const r = jZone.getBoundingClientRect();
-                const cx = r.left + r.width/2; const cy = r.top + r.height/2;
-                let dx = t.clientX - cx; let dy = t.clientY - cy;
-                const d = Math.min(Math.sqrt(dx*dx + dy*dy), 60); const a = Math.atan2(dy, dx);
-                joyState.x = Math.cos(a) * (d/60); joyState.y = Math.sin(a) * (d/60);
-                jHead.style.transform = `translate(calc(-50% + ${Math.cos(a)*d}px), calc(-50% + ${Math.sin(a)*d}px))`;
+        // Kontroller
+        const joystick = { active: false, x: 0, y: 0 };
+        function setupEvents() {
+            window.addEventListener('keydown', e => keys[e.code] = true);
+            window.addEventListener('keyup', e => keys[e.code] = false);
+
+            const jCont = document.getElementById('joy-container');
+            const jStick = document.getElementById('joy-stick');
+
+            jCont.addEventListener('touchstart', e => { e.preventDefault(); joystick.active = true; }, {passive: false});
+            window.addEventListener('touchmove', e => {
+                if(!joystick.active) return;
+                const touch = e.touches[0];
+                const rect = jCont.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const dx = touch.clientX - centerX;
+                const dy = touch.clientY - centerY;
+                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 60);
+                const angle = Math.atan2(dy, dx);
+                
+                joystick.x = Math.cos(angle) * (dist/60);
+                joystick.y = Math.sin(angle) * (dist/60);
+                
+                jStick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+            }, {passive: false});
+
+            window.addEventListener('touchend', () => {
+                joystick.active = false; joystick.x = 0; joystick.y = 0;
+                jStick.style.transform = `translate(-50%, -50%)`;
             });
-            jZone.addEventListener('touchend', () => { joyState.active = false; joyState.x = 0; joyState.y = 0; jHead.style.transform = `translate(-50%, -50%)`; });
-            document.getElementById('btn-dash').onclick = () => { if(activeState==='PLAY') dash(); };
-            document.getElementById('btn-bomb').onclick = () => { if(activeState==='PLAY') bomb(); };
-        }
 
-        function shoot() {
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({ color: 0x00ff88 }));
-            b.position.copy(me.position); b.position.y = 1.3;
-            const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(me.quaternion);
-            scene.add(b); shots.push({ mesh: b, dir, ttl: 80 });
-        }
-
-        function dash() {
-            if(dashLocked) return; dashLocked = true;
-            const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(me.quaternion);
-            me.position.addScaledVector(dir, 12);
-            document.getElementById('cd-dash').style.height = '100%';
-            setTimeout(() => { dashLocked = false; document.getElementById('cd-dash').style.height = '0%'; }, 2500);
-        }
-
-        function bomb() {
-            if(bombLocked) return; bombLocked = true;
-            const b = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshStandardMaterial({ color: 0x7000ff, emissive: 0x7000ff }));
-            b.position.copy(me.position); scene.add(b);
-            setTimeout(() => scene.remove(b), 2000);
-            document.getElementById('cd-bomb').style.height = '100%';
-            setTimeout(() => { bombLocked = false; document.getElementById('cd-bomb').style.height = '0%'; }, 6000);
-        }
-
-        const initFirebase = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-            else await signInAnonymously(auth);
-        };
-        onAuthStateChanged(auth, u => { if(u) { myId = u.uid; document.getElementById('play-now').disabled = false; document.getElementById('play-now').innerText = "SAVAŞA KATIL"; }});
-        initFirebase();
-
-        document.getElementById('play-now').onclick = () => {
-            const n = document.getElementById('zaro-name').value || "PİLOT";
-            document.getElementById('display-name').innerText = n;
-            document.getElementById('lobby').style.opacity = '0';
-            setTimeout(() => document.getElementById('lobby').style.display = 'none', 500);
-            document.getElementById('hud').style.display = 'block';
-            me = createZaroModel(false); scene.add(me); activeState = 'PLAY';
-            if(isMobile) document.getElementById('joystick-zone').style.display = 'block';
+            document.getElementById('btn-dash').addEventListener('click', useDash);
+            document.getElementById('btn-bomb').addEventListener('click', useBomb);
             
-            const playersCol = collection(db, 'artifacts', appId, 'public', 'data', 'players');
-            onSnapshot(playersCol, (s) => {
-                s.docChanges().forEach(c => {
-                    const id = c.doc.id; const d = c.doc.data();
+            // Mobil için özel basma desteği
+            document.getElementById('btn-dash').addEventListener('touchstart', (e) => { e.preventDefault(); useDash(); });
+            document.getElementById('btn-bomb').addEventListener('touchstart', (e) => { e.preventDefault(); useBomb(); });
+        }
+
+        let dashCd = false, bombCd = false;
+        function useDash() {
+            if(dashCd || !me) return;
+            dashCd = true;
+            const dir = new THREE.Vector3(0,0,1).applyQuaternion(me.quaternion);
+            me.position.addScaledVector(dir, 12);
+            const bar = document.getElementById('cd-dash');
+            bar.style.height = '100%';
+            setTimeout(() => { dashCd = false; bar.style.height = '0%'; }, 2000);
+        }
+
+        function useBomb() {
+            if(bombCd || !me) return;
+            bombCd = true;
+            const b = new THREE.Mesh(new THREE.SphereGeometry(3), new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4 }));
+            b.position.copy(me.position);
+            scene.add(b);
+            setTimeout(() => scene.remove(b), 400);
+            const bar = document.getElementById('cd-bomb');
+            bar.style.height = '100%';
+            setTimeout(() => { bombCd = false; bar.style.height = '0%'; }, 5000);
+        }
+
+        function updateMovement() {
+            let dx = 0, dz = 0;
+            if(isMobile) {
+                dx = joystick.x; dz = joystick.y;
+            } else {
+                if(keys['KeyW']) dz = -1; if(keys['KeyS']) dz = 1;
+                if(keys['KeyA']) dx = -1; if(keys['KeyD']) dx = 1;
+            }
+
+            if(dx !== 0 || dz !== 0) {
+                me.position.x += dx * 0.35;
+                me.position.z += dz * 0.35;
+                const angle = Math.atan2(dx, dz);
+                me.rotation.y = angle;
+                
+                // Firebase Sync (Throttle)
+                if(Math.random() > 0.9) {
+                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), {
+                        x: me.position.x, z: me.position.z, r: me.rotation.y, n: document.getElementById('p-name').value || "PILOT"
+                    });
+                }
+            }
+        }
+
+        // Firebase Auth
+        async function startAuth() {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            onAuthStateChanged(auth, u => {
+                if(u) {
+                    myId = u.uid;
+                    document.getElementById('btn-start').disabled = false;
+                    document.getElementById('btn-start').innerText = "SAVAŞA KATIL";
+                }
+            });
+        }
+
+        // UI Handlers
+        document.getElementById('mode-pc').onclick = () => { isMobile = false; document.getElementById('mode-pc').className = "flex-1 p-2 bg-[#7000ff]/20 text-white rounded-lg border border-[#7000ff] text-xs font-bold"; document.getElementById('mode-mobile').className = "flex-1 p-2 bg-black text-gray-500 rounded-lg border border-gray-800 text-xs font-bold"; };
+        document.getElementById('mode-mobile').onclick = () => { isMobile = true; document.getElementById('mode-mobile').className = "flex-1 p-2 bg-[#7000ff]/20 text-white rounded-lg border border-[#7000ff] text-xs font-bold"; document.getElementById('mode-pc').className = "flex-1 p-2 bg-black text-gray-500 rounded-lg border border-gray-800 text-xs font-bold"; };
+
+        document.getElementById('btn-start').onclick = () => {
+            const name = document.getElementById('p-name').value || "PİLOT";
+            document.getElementById('hud-name').innerText = name;
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            if(isMobile) document.getElementById('joy-container').style.display = 'block';
+            
+            me = createPlayer(0x00ff88);
+            scene.add(me);
+
+            // Listeners
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'players'), (snap) => {
+                snap.docChanges().forEach(change => {
+                    const id = change.doc.id;
+                    const data = change.doc.data();
                     if(id === myId) return;
-                    if(c.type === 'added' || c.type === 'modified') {
-                        if(!others[id]) { others[id] = { mesh: createZaroModel(true) }; scene.add(others[id].mesh); }
-                        others[id].mesh.position.set(d.x, 0, d.z); others[id].mesh.rotation.y = d.r;
-                    } else if(c.type === 'removed' && others[id]) { scene.remove(others[id].mesh); delete others[id]; }
+                    if(change.type === 'added' || change.type === 'modified') {
+                        if(!others[id]) { others[id] = createPlayer(0x7000ff); scene.add(others[id]); }
+                        others[id].position.set(data.x, 0, data.z);
+                        others[id].rotation.y = data.r;
+                    } else if(change.type === 'removed') {
+                        scene.remove(others[id]); delete others[id];
+                    }
                 });
             });
         };
 
-        document.getElementById('set-pc').onclick = () => { isMobile = false; document.getElementById('set-pc').classList.add('selected'); document.getElementById('set-mob').classList.remove('selected'); };
-        document.getElementById('set-mob').onclick = () => { isMobile = true; document.getElementById('set-mob').classList.add('selected'); document.getElementById('set-pc').classList.remove('selected'); };
+        window.onbeforeunload = () => { if(myId) deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId)); };
+        window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
 
-        let dashLocked = false, bombLocked = false;
-
-        function loop() {
-            requestAnimationFrame(loop);
-            if(activeState === 'PLAY' && me) {
-                if(isMobile) {
-                    me.position.x += joyState.x * 0.25; me.position.z += joyState.y * 0.25;
-                    if(joyState.x !== 0 || joyState.y !== 0) me.rotation.y = Math.atan2(joyState.x, joyState.y);
-                } else {
-                    if(press['KeyW']) { me.position.z -= 0.25; me.rotation.y = Math.PI; }
-                    if(press['KeyS']) { me.position.z += 0.25; me.rotation.y = 0; }
-                    if(press['KeyA']) { me.position.x -= 0.25; me.rotation.y = -Math.PI/2; }
-                    if(press['KeyD']) { me.position.x += 0.25; me.rotation.y = Math.PI/2; }
-                    if(press['ShiftLeft']) dash();
-                    if(press['KeyE'] || press['KeyQ']) bomb();
-                }
-                camera.position.lerp(new THREE.Vector3(me.position.x, 16, me.position.z + 18), 0.08);
-                camera.lookAt(me.position);
-                if(Math.random() > 0.9 && myId) {
-                    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'players', myId), { x: me.position.x, z: me.position.z, r: me.rotation.y });
-                }
-                drawRadar();
-            }
-
-            // Loot Döndürme
-            scene.children.forEach(c => {
-                if(c.userData.isLoot) c.rotation.y += 0.02;
-            });
-
-            shots.forEach((s, i) => {
-                s.mesh.position.addScaledVector(s.dir, 0.7); s.ttl--;
-                if(s.ttl <= 0) { scene.remove(s.mesh); shots.splice(i, 1); }
-            });
-            renderer.render(scene, camera);
-        }
-
-        function drawRadar() {
-            radCtx.clearRect(0,0,160,160); radCtx.fillStyle = "#00ff88";
-            radCtx.beginPath(); radCtx.arc(80, 80, 5, 0, Math.PI*2); radCtx.fill();
-            radCtx.fillStyle = "#7000ff";
-            Object.values(others).forEach(e => {
-                const dx = (e.mesh.position.x - me.position.x) * 1.2; const dz = (e.mesh.position.z - me.position.z) * 1.2;
-                radCtx.beginPath(); radCtx.arc(80 + dx, 80 + dz, 4, 0, Math.PI*2); radCtx.fill();
-            });
-        }
-
-        window.toggleFull = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-        startEngine(); bindInputs();
+        init(); setupEvents(); startAuth();
     </script>
 </body>
 </html>
 
 ```
+
