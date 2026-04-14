@@ -4,61 +4,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Voxel Arena - Mobil & PC</title>
+    <title>Voxel Arena Pro - 3D Multiplayer</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: sans-serif; user-select: none; touch-action: none; }
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-purple: #bc13fe;
+            --danger: #ff0055;
+            --dark-bg: #050505;
+        }
+
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: var(--dark-bg); 
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            color: white; user-select: none; touch-action: none;
+        }
+
         #game-canvas { display: block; width: 100%; height: 100%; }
-        
-        #ui { position: absolute; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+
+        /* Lobi Tasarımı */
+        #ui-overlay { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
         #lobby { 
-            background: rgba(15, 23, 42, 0.95); padding: 30px; border-radius: 20px; 
-            text-align: center; pointer-events: all; border: 2px solid #4f46e5; width: 80%; max-width: 300px;
+            position: absolute; inset: 0; background: radial-gradient(circle, #1a1a2e 0%, #050505 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: all; transition: opacity 0.5s;
         }
-        
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            width: 320px;
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.1);
+        }
+
+        h1 { font-size: 2.5rem; margin: 0 0 20px; letter-spacing: 4px; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+
+        .input-group { margin-bottom: 20px; }
         input { 
-            padding: 12px; border-radius: 8px; border: 1px solid #4f46e5; width: 90%; 
-            margin-bottom: 20px; background: #1e293b; color: white; font-size: 16px; text-align: center;
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--neon-blue);
+            background: rgba(0,0,0,0.5); color: white; text-align: center; outline: none; box-sizing: border-box;
         }
+
+        .device-select { display: flex; gap: 10px; margin-bottom: 20px; }
+        .device-btn {
+            flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444;
+            background: #222; color: #888; cursor: pointer; transition: 0.3s;
+        }
+        .device-btn.active { border-color: var(--neon-purple); color: white; background: rgba(188, 19, 254, 0.2); }
+
+        #start-btn {
+            width: 100%; padding: 15px; border-radius: 8px; border: none;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white; font-weight: bold; font-size: 1.1rem; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #start-btn:active { transform: scale(0.95); }
+        #start-btn:disabled { opacity: 0.5; cursor: wait; }
+
+        /* HUD & MiniMap */
+        #hud { display: none; position: absolute; inset: 0; pointer-events: none; }
         
-        button { 
-            padding: 15px 40px; border-radius: 10px; border: none; 
-            background: #4f46e5; color: white; font-weight: bold; cursor: pointer; font-size: 18px; width: 100%;
+        #minimap {
+            position: absolute; top: 20px; right: 20px; width: 150px; height: 150px;
+            background: rgba(0,0,0,0.6); border: 2px solid var(--neon-blue); border-radius: 10px;
+            overflow: hidden;
         }
+        #minimap-canvas { width: 100%; height: 100%; }
 
-        #hud { position: absolute; top: 20px; left: 20px; color: white; display: none; pointer-events: none; font-weight: bold; text-shadow: 1px 1px 2px black; }
+        .stats { position: absolute; top: 20px; left: 20px; }
+        .hp-bar-outer { width: 200px; height: 15px; background: #333; border-radius: 10px; border: 1px solid #555; overflow: hidden; }
+        .hp-bar-inner { height: 100%; width: 100%; background: var(--danger); transition: width 0.3s; }
 
-        /* Mobil Kontroller */
-        .joystick-container {
-            position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px;
-            background: rgba(255,255,255,0.1); border-radius: 50%; pointer-events: all; display: none;
+        .abilities { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 15px; pointer-events: all; }
+        .ability-btn {
+            width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.7);
+            border: 2px solid var(--neon-blue); color: white; display: flex; align-items: center;
+            justify-content: center; font-size: 10px; flex-direction: column; position: relative;
         }
-        .joystick-stick {
+        .cd-overlay { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.7); height: 0%; transition: height 0.1s; border-radius: 50%; }
+
+        #fullscreen-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #555; cursor: pointer; z-index: 1000; font-size: 20px; pointer-events: all; }
+
+        /* Mobil Joystick */
+        #joystick-base {
+            position: absolute; bottom: 50px; left: 50px; width: 120px; height: 120px;
+            background: rgba(255,255,255,0.1); border-radius: 50%; display: none; pointer-events: all;
+        }
+        #joystick-stick {
             position: absolute; top: 50%; left: 50%; width: 50px; height: 50px;
-            background: rgba(255,255,255,0.4); border-radius: 50%; transform: translate(-50%, -50%);
-        }
-        #fire-zone {
-            position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px;
-            background: rgba(239, 68, 68, 0.4); border-radius: 50%; pointer-events: all;
-            display: none; align-items: center; justify-content: center; color: white; font-weight: bold;
-            border: 2px solid rgba(255,255,255,0.2);
+            background: var(--neon-blue); border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.6;
         }
     </style>
 </head>
 <body>
 
-    <div id="ui">
+    <button id="fullscreen-btn" onclick="toggleFS()">⛶</button>
+
+    <div id="ui-overlay">
+        <!-- Lobi -->
         <div id="lobby">
-            <h1 style="color: white; margin-top: 0; font-size: 24px;">VOXEL ARENA</h1>
-            <input type="text" id="nick" placeholder="İsmini Yaz..." maxlength="10">
-            <button id="start-btn">OYUNA BAŞLA</button>
+            <div class="glass-panel">
+                <h1>ARENA</h1>
+                <div class="input-group">
+                    <input type="text" id="nick-input" placeholder="Pilot Adı..." maxlength="12">
+                </div>
+                <div class="device-select">
+                    <button class="device-btn active" id="btn-pc">PC</button>
+                    <button class="device-btn" id="btn-mob">MOBİL</button>
+                </div>
+                <button id="start-btn" disabled>SİSTEM YÜKLENİYOR...</button>
+                <p id="status" style="font-size: 10px; color: #555; margin-top: 10px;">Firebase Syncing...</p>
+            </div>
         </div>
-        <div id="hud">CAN: 100 | SKOR: 0</div>
-        
-        <!-- Mobil Görsel Kontroller -->
-        <div id="move-joy" class="joystick-container">
-            <div id="stick" class="joystick-stick"></div>
+
+        <!-- HUD -->
+        <div id="hud">
+            <div class="stats">
+                <div id="player-tag" style="margin-bottom: 5px; font-weight: bold; color: var(--neon-blue);">ADSIZ</div>
+                <div class="hp-bar-outer"><div class="hp-bar-inner" id="hp-fill"></div></div>
+                <div id="score-text" style="margin-top: 5px; font-size: 14px;">SKOR: 0</div>
+            </div>
+
+            <div id="minimap">
+                <canvas id="minimap-canvas"></canvas>
+            </div>
+
+            <div class="abilities">
+                <div class="ability-btn" id="dash-btn">
+                    <span>DASH</span>
+                    <span id="dash-key" style="font-size: 8px;">(SHIFT)</span>
+                    <div class="cd-overlay" id="dash-cd"></div>
+                </div>
+                <div class="ability-btn" id="bomb-btn">
+                    <span>BOMBA</span>
+                    <span id="bomb-key" style="font-size: 8px;">(Q / E)</span>
+                    <div class="cd-overlay" id="bomb-cd"></div>
+                </div>
+            </div>
+
+            <div id="joystick-base">
+                <div id="joystick-stick"></div>
+            </div>
         </div>
-        <div id="fire-zone">ATEŞ</div>
     </div>
 
     <canvas id="game-canvas"></canvas>
@@ -66,190 +157,322 @@
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // --- KONFİGÜRASYON ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBSkMiVSxFwXmJLcSPxrAWu-bBoImAgrzo",
-            authDomain: "voxel-feb43.firebaseapp.com",
-            projectId: "voxel-feb43",
-            storageBucket: "voxel-feb43.firebasestorage.app",
-            messagingSenderId: "604626773313",
-            appId: "1:604626773313:web:6e855ff7191a2612c76dc0"
+          apiKey: "AIzaSyBSkMiVSxFwXmJLcSPxrAWu-bBoImAgrzo",
+          authDomain: "voxel-feb43.firebaseapp.com",
+          projectId: "voxel-feb43",
+          storageBucket: "voxel-feb43.firebasestorage.app",
+          messagingSenderId: "604626773313",
+          appId: "1:604626773313:web:6e855ff7191a2612c76dc0"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        let scene, camera, renderer, player;
-        let userId = null;
+        // --- GLOBAL DEĞİŞKENLER ---
+        let scene, camera, renderer, localPlayer, userId;
+        let isControlMobile = false;
+        let gameState = 'LOBBY';
         const enemies = {};
+        const bullets = [];
+        const bombs = [];
         const keys = {};
-        const isMobile = 'ontouchstart' in window;
-        let moveData = { x: 0, y: 0 };
-        let projectiles = [];
+        let hp = 100;
+        let score = 0;
+        let dashCD = false;
+        let bombCD = false;
 
-        function init() {
+        const mmCanvas = document.getElementById('minimap-canvas');
+        const mmCtx = mmCanvas.getContext('2d');
+
+        // --- BAŞLATMA ---
+        function initScene() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f172a);
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.04); // Sis efekti
+
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const light = new THREE.DirectionalLight(0xffffff, 0.8);
-            light.position.set(10, 20, 10);
-            scene.add(light);
+            // Işıklandırma
+            const ambient = new THREE.AmbientLight(0x404040, 1.5);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0x00f2ff, 1);
+            sun.position.set(20, 50, 10);
+            sun.castShadow = true;
+            scene.add(sun);
 
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
+            // Zemin
+            const floorGeo = new THREE.PlaneGeometry(200, 200);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
             scene.add(floor);
-            scene.add(new THREE.GridHelper(100, 40, 0x4f46e5, 0x1e293b));
+
+            const grid = new THREE.GridHelper(200, 40, 0x00f2ff, 0x222222);
+            grid.position.y = 0.05;
+            scene.add(grid);
+
+            // Rastgele Engeller
+            for(let i=0; i<30; i++) {
+                const h = Math.random() * 5 + 1;
+                const obs = new THREE.Mesh(new THREE.BoxGeometry(2, h, 2), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                obs.position.set(Math.random()*160-80, h/2, Math.random()*160-80);
+                obs.castShadow = true;
+                obs.receiveShadow = true;
+                scene.add(obs);
+            }
 
             animate();
         }
 
-        function createBox(color, name) {
-            const g = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color }));
-            body.position.y = 0.5;
-            g.add(body);
+        function createVoxelModel(isEnemy = false) {
+            const group = new THREE.Group();
+            const color = isEnemy ? 0xff0055 : 0x00f2ff;
             
-            // Basit silah ucu
-            const gun = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.7), new THREE.MeshStandardMaterial({ color: 0x000000 }));
-            gun.position.set(0, 0.6, 0.5);
-            g.add(gun);
-            
-            return g;
+            // Gövde
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 0.8), new THREE.MeshStandardMaterial({ color }));
+            body.position.y = 1.2;
+            group.add(body);
+
+            // Kafa
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), new THREE.MeshStandardMaterial({ color }));
+            head.position.y = 2.2;
+            group.add(head);
+
+            // Silah
+            const gun = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 1.5), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            gun.position.set(0.6, 1.2, 0.8);
+            group.add(gun);
+
+            group.castShadow = true;
+            return group;
         }
 
-        document.getElementById('start-btn').onclick = async () => {
-            const nick = document.getElementById('nick').value || "Oyuncu";
-            document.getElementById('lobby').style.display = 'none';
+        // --- KONTROL MEKANİZMASI ---
+        const joy = { active: false, x: 0, y: 0 };
+        function setupControls() {
+            window.addEventListener('keydown', e => keys[e.code] = true);
+            window.addEventListener('keyup', e => keys[e.code] = false);
+            
+            // Mouse Ateş
+            window.addEventListener('mousedown', () => { if(gameState==='PLAYING' && !isControlMobile) fireBullet(); });
+
+            // Joystick İşlemleri
+            const jBase = document.getElementById('joystick-base');
+            const jStick = document.getElementById('joystick-stick');
+
+            jBase.addEventListener('touchstart', e => { joy.active = true; });
+            jBase.addEventListener('touchmove', e => {
+                if(!joy.active) return;
+                const touch = e.touches[0];
+                const rect = jBase.getBoundingClientRect();
+                const centerX = rect.left + rect.width/2;
+                const centerY = rect.top + rect.height/2;
+                let dx = touch.clientX - centerX;
+                let dy = touch.clientY - centerY;
+                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+                const angle = Math.atan2(dy, dx);
+                joy.x = Math.cos(angle) * (dist/50);
+                joy.y = Math.sin(angle) * (dist/50);
+                jStick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+            });
+            jBase.addEventListener('touchend', () => {
+                joy.active = false; joy.x = 0; joy.y = 0;
+                jStick.style.transform = `translate(-50%, -50%)`;
+            });
+
+            // Yetenek Butonları
+            document.getElementById('dash-btn').onclick = useDash;
+            document.getElementById('bomb-btn').onclick = useBomb;
+        }
+
+        // --- AKSİYONLAR ---
+        function fireBullet() {
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0x00f2ff }));
+            b.position.copy(localPlayer.position);
+            b.position.y = 1.2;
+            const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(localPlayer.quaternion);
+            scene.add(b);
+            bullets.push({ mesh: b, dir, life: 100, owner: userId });
+        }
+
+        function useDash() {
+            if(dashCD) return;
+            dashCD = true;
+            const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(localPlayer.quaternion);
+            localPlayer.position.addScaledVector(dir, 10);
+            document.getElementById('dash-cd').style.height = '100%';
+            setTimeout(() => { dashCD = false; document.getElementById('dash-cd').style.height = '0%'; }, 2000);
+        }
+
+        function useBomb() {
+            if(bombCD) return;
+            bombCD = true;
+            const b = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshStandardMaterial({ color: 0xbc13fe, emissive: 0xbc13fe }));
+            b.position.copy(localPlayer.position);
+            scene.add(b);
+            bombs.push({ mesh: b, timer: 60 });
+            document.getElementById('bomb-cd').style.height = '100%';
+            setTimeout(() => { bombCD = false; document.getElementById('bomb-cd').style.height = '0%'; }, 5000);
+        }
+
+        // --- FİREBASE SYNC ---
+        onAuthStateChanged(auth, u => {
+            if(u) {
+                userId = u.uid;
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('start-btn').innerText = "SAVAŞA KATIL";
+            } else {
+                signInAnonymously(auth);
+            }
+        });
+
+        document.getElementById('start-btn').onclick = () => {
+            const nick = document.getElementById('nick-input').value || "Pilot";
+            document.getElementById('player-tag').innerText = nick;
+            document.getElementById('lobby').style.opacity = '0';
+            setTimeout(() => document.getElementById('lobby').style.display = 'none', 500);
             document.getElementById('hud').style.display = 'block';
-            if(isMobile) {
-                document.getElementById('move-joy').style.display = 'block';
-                document.getElementById('fire-zone').style.display = 'flex';
+            
+            localPlayer = createVoxelModel(false);
+            scene.add(localPlayer);
+            gameState = 'PLAYING';
+
+            if(isControlMobile) {
+                document.getElementById('joystick-base').style.display = 'block';
+                document.getElementById('dash-key').style.display = 'none';
+                document.getElementById('bomb-key').style.display = 'none';
             }
 
-            const cred = await signInAnonymously(auth);
-            userId = cred.user.uid;
-
-            player = createBox(0x4f46e5, nick);
-            scene.add(player);
-
-            onSnapshot(collection(db, "players"), (snap) => {
+            // Sync Players
+            onSnapshot(collection(db, "arena_players"), (snap) => {
                 snap.docChanges().forEach(change => {
                     const id = change.doc.id;
                     const d = change.doc.data();
                     if(id === userId) return;
-                    if(change.type === "added" || change.type === "modified") {
+                    if(change.type === 'added' || change.type === 'modified') {
                         if(!enemies[id]) {
-                            enemies[id] = createBox(0xef4444, d.n);
-                            scene.add(enemies[id]);
+                            enemies[id] = { mesh: createVoxelModel(true), name: d.name };
+                            scene.add(enemies[id].mesh);
                         }
-                        enemies[id].position.set(d.x, 0, d.z);
-                        enemies[id].rotation.y = d.r || 0;
-                    } else if(change.type === "removed") {
-                        if(enemies[id]) { scene.remove(enemies[id]); delete enemies[id]; }
+                        enemies[id].mesh.position.set(d.x, 0, d.z);
+                        enemies[id].mesh.rotation.y = d.r;
+                    } else if(change.type === 'removed') {
+                        if(enemies[id]) { scene.remove(enemies[id].mesh); delete enemies[id]; }
                     }
                 });
             });
         };
 
-        // Ateş Etme
-        function fire() {
-            if(!player) return;
-            const bullet = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-            bullet.position.copy(player.position);
-            bullet.position.y = 0.6;
-            const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(player.quaternion);
-            scene.add(bullet);
-            projectiles.push({ mesh: bullet, dir: dir, life: 100 });
-        }
+        // --- CİHAZ SEÇİMİ ---
+        document.getElementById('btn-pc').onclick = () => {
+            isControlMobile = false;
+            document.getElementById('btn-pc').classList.add('active');
+            document.getElementById('btn-mob').classList.remove('active');
+        };
+        document.getElementById('btn-mob').onclick = () => {
+            isControlMobile = true;
+            document.getElementById('btn-mob').classList.add('active');
+            document.getElementById('btn-pc').classList.remove('active');
+        };
 
-        // Joystick Mantığı
-        if(isMobile) {
-            const joy = document.getElementById('move-joy');
-            const stick = document.getElementById('stick');
-            joy.ontouchmove = (e) => {
-                const touch = e.touches[0];
-                const rect = joy.getBoundingClientRect();
-                const cx = rect.left + rect.width/2;
-                const cy = rect.top + rect.height/2;
-                let dx = touch.clientX - cx;
-                let dy = touch.clientY - cy;
-                const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-                const angle = Math.atan2(dy, dx);
-                dx = Math.cos(angle) * dist;
-                dy = Math.sin(angle) * dist;
-                stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-                moveData = { x: dx/50, y: dy/50 };
-            };
-            joy.ontouchend = () => {
-                stick.style.transform = `translate(-50%, -50%)`;
-                moveData = { x: 0, y: 0 };
-            };
-            document.getElementById('fire-zone').ontouchstart = (e) => { e.preventDefault(); fire(); };
-        }
-
+        // --- OYUN DÖNGÜSÜ ---
         function animate() {
             requestAnimationFrame(animate);
-            if(player) {
-                // Hareket Kontrolü
-                let vx = 0, vz = 0;
-                if(isMobile) {
-                    vx = moveData.x * 0.15;
-                    vz = moveData.y * 0.15;
+            if(gameState === 'PLAYING' && localPlayer) {
+                let moved = false;
+                if(isControlMobile) {
+                    localPlayer.position.x += joy.x * 0.2;
+                    localPlayer.position.z += joy.y * 0.2;
+                    if(joy.x !== 0 || joy.y !== 0) {
+                        localPlayer.rotation.y = Math.atan2(joy.x, joy.y);
+                        moved = true;
+                    }
                 } else {
-                    if(keys['w'] || keys['W']) vz = -0.15;
-                    if(keys['s'] || keys['S']) vz = 0.15;
-                    if(keys['a'] || keys['A']) vx = -0.15;
-                    if(keys['d'] || keys['D']) vx = 0.15;
-                }
-                player.position.x += vx;
-                player.position.z += vz;
-
-                // Bakış yönü
-                if(vx !== 0 || vz !== 0) {
-                    player.rotation.y = Math.atan2(vx, vz);
+                    if(keys['KeyW']) { localPlayer.position.z -= 0.2; localPlayer.rotation.y = Math.PI; moved = true; }
+                    if(keys['KeyS']) { localPlayer.position.z += 0.2; localPlayer.rotation.y = 0; moved = true; }
+                    if(keys['KeyA']) { localPlayer.position.x -= 0.2; localPlayer.rotation.y = -Math.PI/2; moved = true; }
+                    if(keys['KeyD']) { localPlayer.position.x += 0.2; localPlayer.rotation.y = Math.PI/2; moved = true; }
+                    if(keys['ShiftLeft']) useDash();
+                    if(keys['KeyQ'] || keys['KeyE']) useBomb();
                 }
 
-                camera.position.lerp(new THREE.Vector3(player.position.x, 12, player.position.z + 10), 0.1);
-                camera.lookAt(player.position);
+                camera.position.lerp(new THREE.Vector3(localPlayer.position.x, 15, localPlayer.position.z + 15), 0.1);
+                camera.lookAt(localPlayer.position);
 
+                // Sync to DB
                 if(Math.random() > 0.8) {
-                    setDoc(doc(db, "players", userId), { x: player.position.x, z: player.position.z, r: player.rotation.y }, { merge: true });
+                    setDoc(doc(db, "arena_players", userId), {
+                        x: localPlayer.position.x, z: localPlayer.position.z,
+                        r: localPlayer.rotation.y, name: document.getElementById('player-tag').innerText
+                    });
                 }
+
+                updateMiniMap();
             }
 
-            // Mermi fiziği
-            projectiles.forEach((p, index) => {
-                p.mesh.position.addScaledVector(p.dir, 0.4);
-                p.life--;
-                if(p.life <= 0) {
-                    scene.remove(p.mesh);
-                    projectiles.splice(index, 1);
+            // Mermiler
+            bullets.forEach((b, i) => {
+                b.mesh.position.addScaledVector(b.dir, 0.6);
+                b.life--;
+                if(b.life <= 0) { scene.remove(b.mesh); bullets.splice(i, 1); }
+            });
+
+            // Bombalar
+            bombs.forEach((b, i) => {
+                b.timer--;
+                b.mesh.scale.setScalar(1 + (60-b.timer)/20);
+                if(b.timer <= 0) {
+                    // Patlama Efekti (Basit)
+                    scene.remove(b.mesh);
+                    bombs.splice(i, 1);
                 }
             });
 
             renderer.render(scene, camera);
         }
 
-        window.onkeydown = (e) => { keys[e.key] = true; if(e.code === 'Space') fire(); };
-        window.onkeyup = (e) => keys[e.key] = false;
-        window.onmousedown = (e) => { if(gameState === 'PLAYING') fire(); };
-        window.onresize = () => {
+        function updateMiniMap() {
+            mmCtx.clearRect(0,0,150,150);
+            mmCtx.fillStyle = "rgba(0,242,255,0.8)";
+            // Oyuncu (Merkez)
+            mmCtx.beginPath();
+            mmCtx.arc(75, 75, 4, 0, Math.PI*2);
+            mmCtx.fill();
+
+            // Düşmanlar
+            mmCtx.fillStyle = "#ff0055";
+            Object.values(enemies).forEach(e => {
+                const dx = (e.mesh.position.x - localPlayer.position.x) * 1.5;
+                const dz = (e.mesh.position.z - localPlayer.position.z) * 1.5;
+                mmCtx.beginPath();
+                mmCtx.arc(75 + dx, 75 + dz, 3, 0, Math.PI*2);
+                mmCtx.fill();
+            });
+        }
+
+        window.toggleFS = () => {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        };
+
+        window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        };
+        });
 
-        let gameState = 'LOBBY';
-        document.getElementById('start-btn').addEventListener('click', () => gameState = 'PLAYING');
-
-        init();
+        initScene();
+        setupControls();
     </script>
 </body>
 </html>
